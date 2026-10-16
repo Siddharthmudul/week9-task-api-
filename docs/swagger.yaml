@@ -1,0 +1,216 @@
+openapi: 3.0.3
+info:
+  title: Task Management API
+  version: 1.0.0
+  description: Flask API for user authentication, task management, assignment, and comments.
+servers:
+  - url: http://localhost:5000/api
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      required: [status, message]
+      properties:
+        status: { type: string, enum: [error] }
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    PaginatedTasks:
+      type: object
+      properties:
+        status: { type: string, enum: [success] }
+        data:
+          type: object
+          properties:
+            tasks:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  title: { type: string }
+                  description: { type: string }
+                  status: { type: string, enum: [pending, in_progress, completed] }
+                  priority: { type: string, enum: [low, medium, high] }
+                  due_date: { type: string, format: date, nullable: true }
+                  created_at: { type: string, format: date-time }
+                  updated_at: { type: string, format: date-time }
+            pagination:
+              type: object
+              properties:
+                page: { type: integer }
+                per_page: { type: integer }
+                total_pages: { type: integer }
+                total_items: { type: integer }
+                has_next: { type: boolean }
+                has_prev: { type: boolean }
+    TaskInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, maxLength: 200 }
+        description: { type: string }
+        status: { type: string, enum: [pending, in_progress, completed] }
+        priority: { type: string, enum: [low, medium, high] }
+        category: { type: string, nullable: true }
+        due_date: { type: string, format: date-time, nullable: true }
+        assignee_id: { type: integer, nullable: true }
+paths:
+  /auth/register:
+    post:
+      security: []
+      summary: Register a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password]
+              properties:
+                username: { type: string, minLength: 3, maxLength: 30 }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        "201": { description: User created with access and refresh tokens }
+        "409": { description: Email already registered }
+        "400": { description: Validation error }
+  /auth/login:
+    post:
+      security: []
+      summary: Log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200": { description: User and JWT tokens }
+        "401": { description: Invalid credentials }
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+      responses:
+        "200": { description: New access token }
+        "401": { description: Invalid or expired refresh token }
+  /auth/logout:
+    post:
+      summary: Revoke current access token
+      responses:
+        "200": { description: Logged out }
+  /auth/password-reset/request:
+    post:
+      security: []
+      summary: Request a password reset email
+      responses:
+        "200": { description: Generic response to prevent account enumeration }
+  /auth/password-reset/confirm:
+    post:
+      security: []
+      summary: Set a new password using a reset token
+      responses:
+        "200": { description: Password reset }
+        "400": { description: Invalid or expired reset token }
+  /users/me:
+    get:
+      summary: Get current user profile
+      responses:
+        "200": { description: User profile }
+  /tasks:
+    get:
+      summary: List, filter, search, sort, and paginate tasks
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: per_page, schema: { type: integer, default: 10, minimum: 1, maximum: 100 } }
+        - { in: query, name: status, schema: { type: string, enum: [pending, in_progress, completed] } }
+        - { in: query, name: priority, schema: { type: string, enum: [low, medium, high] } }
+        - { in: query, name: category, schema: { type: string } }
+        - { in: query, name: search, schema: { type: string } }
+        - { in: query, name: sort_by, schema: { type: string, enum: [due_date, created_at, priority] } }
+        - { in: query, name: sort_order, schema: { type: string, enum: [asc, desc] } }
+      responses:
+        "200":
+          description: Paginated task list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedTasks" }
+    post:
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TaskInput" }
+      responses:
+        "201": { description: Task created }
+        "400": { description: Validation error }
+  /tasks/{task_id}:
+    parameters:
+      - { in: path, name: task_id, required: true, schema: { type: integer } }
+    get:
+      summary: Get a task and its comments
+      responses:
+        "200": { description: Task details }
+        "403": { description: Not a task owner or assignee }
+        "404": { description: Task not found }
+    put:
+      summary: Replace task fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TaskInput" }
+      responses:
+        "200": { description: Task updated }
+    patch:
+      summary: Partially update a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TaskInput" }
+      responses:
+        "200": { description: Task updated }
+    delete:
+      summary: Delete a task (owner only)
+      responses:
+        "200": { description: Task deleted }
+  /tasks/{task_id}/comments:
+    post:
+      summary: Add a comment
+      parameters:
+        - { in: path, name: task_id, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, maxLength: 2000 }
+      responses:
+        "201": { description: Comment created }
+  /tasks/{task_id}/comments/{comment_id}:
+    delete:
+      summary: Delete a comment (author or task owner)
+      parameters:
+        - { in: path, name: task_id, required: true, schema: { type: integer } }
+        - { in: path, name: comment_id, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Comment deleted }
