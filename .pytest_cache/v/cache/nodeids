@@ -1,0 +1,12 @@
+[
+  "tests/test_auth.py::test_password_reset_uses_email_and_rejects_reset_token_as_access",
+  "tests/test_auth.py::test_register_login_refresh_and_logout",
+  "tests/test_auth.py::test_registration_validation_and_duplicate_email",
+  "tests/test_tasks.py::test_task_crud_filters_pagination_assignment_and_comments",
+  "tests/test_tasks.py::test_task_validation_and_owner_isolation",
+  "tests/test_users.py::test_api_root_returns_available_endpoints",
+  "tests/test_users.py::test_docs_page_renders_documentation_in_browser",
+  "tests/test_users.py::test_documentation_files_are_available",
+  "tests/test_users.py::test_profile_requires_authentication",
+  "tests/test_users.py::test_versioned_api_path_remains_available"
+]
